@@ -1,3 +1,6 @@
+# APIs for Claude/GPT
+*.api
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

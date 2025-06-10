@@ -1,0 +1,24 @@
+video:
+  camera_index: 0
+  frame_rate: 2
+  resolution: [224, 224]
+
+audio:
+  vad_threshold: 0.01
+  whisper_model: "base.en"
+
+llm:
+  provider: "local"
+  model_path: "gguf_models/phi3.Q4.gguf"
+  context_size: 4096
+
+memory:
+  vectorstore_path: "data/embeddings/"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+tts:
+  voice: "en_US-kristin-medium"
+
+agent:
+  name: "fren-agent"
+  max_response_time: 2

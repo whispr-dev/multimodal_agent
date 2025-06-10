@@ -1,0 +1,23 @@
+python-dotenv
+anthropic
+openai
+faiss-cpu --index-url https://pypi.org/simple
+sentence-transformers
+txt
+torch
+torchaudio-2.7.1
+transformers
+sentence-transformers
+openai-whisper
+whispercpp
+# piper-tts
+ultralytics
+opencv-python
+pyttsx3
+faiss-cpu
+langchain
+pyaudio
+sounddevice
+faster-whisper
+torchvision
+pillow
