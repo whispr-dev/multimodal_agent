@@ -19,6 +19,7 @@ class MemoryEngine:
 
     def store(self, vision, audio, mood, reply):
         entry = f"[Vision] {vision} [Audio] {audio} [Mood] {mood} [Reply] {reply}"
+        print(f"[Memory Stored] {entry}")  # Debugging
         vec = self.embed(entry)
         self.index.add(np.array([vec]).astype("float32"))
         self.data.append(entry)

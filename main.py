@@ -30,5 +30,8 @@ def main():
         audio_module.stop_stream()
         mem.save()
 
-if __name__ == "__main__":
-    main()
+    if frame_data is None or speech_text.strip() == "":
+        continue
+
+# if __name__ == "__main__":
+#     main()

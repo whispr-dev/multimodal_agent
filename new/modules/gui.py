@@ -1,0 +1,122 @@
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QTabWidget, QWidget,
+    QVBoxLayout, QLabel, QTextEdit, QPushButton, QComboBox
+)
+from PyQt5.QtCore import Qt, QTimer
+from modules.vision import VisionModule
+from modules.audio_input import AudioInput
+from modules.llm_core import LLMEngine
+from modules.tts_output import TTSEngine
+from modules.memory import MemoryEngine
+from modules.utils import load_identity_profile
+
+class FrenAgentGUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.identity = load_identity_profile()
+        self.setWindowTitle(f"{self.identity['agent_name']} :: Multimodal Companion")
+        self.setGeometry(100, 100, 1000, 700)
+
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
+
+        self.vision = VisionModule()
+        self.audio = AudioInput()
+        self.llm = LLMEngine()
+        self.tts = TTSEngine()
+        self.memory = MemoryEngine()
+
+        self.init_agent_tab()
+        self.init_vision_tab()
+        self.init_audio_tab()
+        self.init_memory_tab()
+        self.init_settings_tab()
+        self.init_logs_tab()
+
+        self.audio.start_stream()
+        self.init_timers()
+
+    def init_timers(self):
+        self.vision_timer = QTimer()
+        self.vision_timer.timeout.connect(self.update_vision_tab)
+        self.vision_timer.start(1000)
+
+        self.audio_timer = QTimer()
+        self.audio_timer.timeout.connect(self.update_audio_tab)
+        self.audio_timer.start(2500)
+
+    def init_agent_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        self.chat_display = QTextEdit()
+        self.chat_display.setReadOnly(True)
+        layout.addWidget(self.chat_display)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Agent")
+
+    def init_vision_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        self.cam_label = QLabel("Loading camera...")
+        layout.addWidget(self.cam_label)
+        self.scene_desc = QLabel("Scene: [none yet]")
+        layout.addWidget(self.scene_desc)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Vision")
+
+    def update_vision_tab(self):
+        frame = self.vision.get_frame()
+        if frame is not None:
+            caption = self.vision.describe_frame(frame)
+            self.scene_desc.setText(f"Scene: {caption}")
+
+    def init_audio_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        self.transcript_display = QTextEdit("Last transcript:\n\n")
+        self.transcript_display.setReadOnly(True)
+        self.tone_label = QLabel("Detected mood: [unknown]")
+        layout.addWidget(self.transcript_display)
+        layout.addWidget(self.tone_label)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Audio")
+
+    def update_audio_tab(self):
+        transcript = self.audio.get_transcription()
+        mood = self.audio.get_mood()
+        if transcript:
+            self.transcript_display.setPlainText(f"Last transcript:\n\n{transcript}")
+            self.tone_label.setText(f"Detected mood: {mood}")
+
+    def init_memory_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        self.memory_display = QTextEdit()
+        self.memory_display.setReadOnly(True)
+        layout.addWidget(self.memory_display)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Memory")
+
+    def init_settings_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Voice Selection"))
+        self.voice_selector = QComboBox()
+        self.voice_selector.addItems(["en_US-kristin-medium", "en_US-ryan-low"])
+        layout.addWidget(self.voice_selector)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Settings")
+
+    def init_logs_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout()
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        layout.addWidget(self.log_display)
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "Logs")
+
+    def closeEvent(self, event):
+        self.audio.stop_stream()
+        self.memory.save()
+        event.accept()

@@ -10,6 +10,54 @@ from modules.tts_output import TTSEngine
 from modules.memory import MemoryEngine
 from modules.utils import load_identity_profile
 
+from PyQt5.QtCore import QThread, pyqtSignal
+
+class VisionWorker(QThread):
+    scene_updated = pyqtSignal(str)
+
+    def __init__(self, vision_module):
+        super().__init__()
+        self.vision_module = vision_module
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                frame = self.vision_module.get_frame()
+                if frame is not None:
+                    print("[VisionWorker] got frame")
+                    caption = self.vision_module.describe_frame(frame)
+                    self.scene_updated.emit(caption)
+            except Exception as e:
+                print(f"[VisionWorker Error] {e}")
+            self.msleep(1000)
+
+    def stop(self):
+        self.running = False
+
+class AudioWorker(QThread):
+    transcript_updated = pyqtSignal(str, str)
+
+    def __init__(self, audio_module):
+        super().__init__()
+        self.audio_module = audio_module
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                transcript = self.audio_module.get_transcription()
+                mood = self.audio_module.get_mood()
+                if transcript:
+                    print("[AudioWorker] got transcript")
+                    self.transcript_updated.emit(transcript, mood)
+            except Exception as e:
+                print(f"[AudioWorker Error] {e}")
+            self.msleep(1000)
+
+    def stop(self):
+        self.running = False
+
 class FrenAgentGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -26,6 +74,14 @@ class FrenAgentGUI(QMainWindow):
         self.tts = TTSEngine()
         self.memory = MemoryEngine()
 
+        self.vision_worker = VisionWorker(self.vision)
+        self.vision_worker.scene_updated.connect(lambda caption: self.scene_desc.setText(f"Scene: {caption}"))
+        self.vision_worker.start()
+
+        self.audio_worker = AudioWorker(self.audio)
+        self.audio_worker.transcript_updated.connect(self.update_audio_display)
+        self.audio_worker.start()
+
         self.init_agent_tab()
         self.init_vision_tab()
         self.init_audio_tab()
@@ -34,16 +90,6 @@ class FrenAgentGUI(QMainWindow):
         self.init_logs_tab()
 
         self.audio.start_stream()
-        self.init_timers()
-
-    def init_timers(self):
-        self.vision_timer = QTimer()
-        self.vision_timer.timeout.connect(self.update_vision_tab)
-        self.vision_timer.start(1000)
-
-        self.audio_timer = QTimer()
-        self.audio_timer.timeout.connect(self.update_audio_tab)
-        self.audio_timer.start(2500)
 
     def init_agent_tab(self):
         tab = QWidget()
@@ -53,6 +99,10 @@ class FrenAgentGUI(QMainWindow):
         layout.addWidget(self.chat_display)
         tab.setLayout(layout)
         self.tabs.addTab(tab, "Agent")
+
+    def update_audio_display(self, transcript, mood):
+        self.transcript_display.setPlainText(f"Last transcript:\n\n{transcript}")
+        self.tone_label.setText(f"Detected mood: {mood}")
 
     def init_vision_tab(self):
         tab = QWidget()
@@ -118,5 +168,9 @@ class FrenAgentGUI(QMainWindow):
 
     def closeEvent(self, event):
         self.audio.stop_stream()
+        self.vision_worker.stop()
+        self.audio_worker.stop()
+        self.vision_worker.wait()
+        self.audio_worker.wait()
         self.memory.save()
         event.accept()

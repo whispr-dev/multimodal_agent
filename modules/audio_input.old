@@ -1,0 +1,48 @@
+import queue
+import threading
+import sounddevice as sd
+from faster_whisper import WhisperModel
+from modules.emotion import detect_tone
+
+class AudioInput:
+    def __init__(self, model_name="base.en"):
+        self.audio_queue = queue.Queue()
+        self.transcribed_text = ""
+        self.mood = "[emotion: unknown]"
+        self.model = WhisperModel("tiny.en", compute_type="int8")
+        self.running = False
+
+    def _audio_callback(self, indata, frames, time, status):
+        self.audio_queue.put(indata.copy())
+
+def _listen_loop(self):
+    while self.running:
+        audio_chunk = self.audio_queue.get()
+        try:
+            print("[AudioInput] running transcription...")
+            segments, _ = self.model.transcribe(audio_chunk[:, 0], beam_size=1)
+            print(f"[AudioInput] segments: {segments}")
+            full = " ".join([seg.text for seg in segments])
+            print(f"[AudioInput] full: '{full}'")
+            if full.strip():
+                print(f"[Audio Transcript] {full.strip()}")
+                self.transcribed_text = full.strip()
+                self.mood = detect_tone(full)
+        except Exception as e:
+            print(f"[AudioInput Error] {e}")
+
+    def start_stream(self):
+        self.running = True
+        self.stream = sd.InputStream(samplerate=16000, channels=1, callback=self._audio_callback)
+        self.stream.start()
+        threading.Thread(target=self._listen_loop, daemon=True).start()
+
+    def stop_stream(self):
+        self.running = False
+        self.stream.stop()
+
+    def get_transcription(self):
+        return self.transcribed_text
+
+    def get_mood(self):
+        return self.mood
